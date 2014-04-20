@@ -1,6 +1,6 @@
 ---
 title       : Julia implementation of GFI
-subtitle    : Part 0 The polyhedra constructions
+subtitle    : First part - the polyhedra sampler
 author      : Stephane Laurent
 job         : 
 framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
@@ -15,58 +15,76 @@ mode        : selfcontained # {standalone, draft}
 source('D:/Work/Fiducial/R/particle_01_functions.R')
 library(knitr)
 library(animation)
+library(scales)
 opts_chunk$set(fig.path="assets/fig/JuliaGFI00-")
 opts_knit$set(animation.fun = hook_scianimator)
+set.seed(666)
 ```
 
 ## Goal 
 
-hello 
+- Implement Ciszewski & Hannig's sampler of the fiducial distributino for normal linear mixed models
+
+- *Why Julia ?* 
+
+  - The algorithm is computationnaly intensive
+  
+  - It requires a high numerical precision; we hope the `BigFloat` type in Julia will achieve this precision 
 
 
 ---
 
-## Problem adressed in these slides 
+## Problem addressed in these slides 
 
-ff
+- These slides only address one part of the algorithm: the sampling of 
+random polyhedra in the Euclidean space 
+
+- This is the point requiring high numerical precision, because the 
+polyhedra are sequentially sampled and become smaller and smaller and smaller...
+
+- I'm not a Julia specialist; these slides should firstly help me to request some help
 
 
 --- &twocolcustomwidth 
 
-## Polyhedra constructions 
+## Polyhedra construction: overview 
 
 *** {name: left, width: "33%"}
 
-aaaaa
+- *Data:* Some pairs of points are given on the $y$-axis
+
+- *Sampling:* Some ribbons issued from these points are sampled at random 
+
+- *Computation:* The polyhedron at the intersection of the ribbons
 
 *** {name: right, width: "63%"}
 
-```{r construction_intro, echo=FALSE}
+```{r construction_intro, echo=FALSE, cache=FALSE}
 # init 
 D11 <- newD(list(
-  a=1,
-  b=1,
+  a=0.4,
+  b=1.5,
   pair=1,
   type=0, # low
   include=1)
   )
 D12 <- newD(list(
-  a=2, 
-  b=1, # must be equal  to D11
+  a=1.5, 
+  b=1.5, # must be equal  to D11
   pair=1,
   type=1,
   include=1)
 )
 D21 <- newD(list(
-  a=4,
-  b=-1,
+  a=4.5,
+  b=-2,
   pair=2,
   type=0,
   include=1)
 )
 D22 <- newD(list(
-  a=5,
-  b=-1,
+  a=5.9,
+  b=-2,
   pair=2,
   type=1,
   include=1)
@@ -78,7 +96,7 @@ D12["x2"] <- D22["x2"] <- intersect(D12,D22)
 part <- rbind(D11,D12,D21,D22)
 part[, c("y1", "y2")] <-  vertices(part)
 #
-a <- rnorm(1,4)
+a <- 2
 D31 <- newD(list(
   a=a,
   pair=3,
@@ -86,7 +104,7 @@ D31 <- newD(list(
   include=NA)
 )
 D32 <- newD(list(
-  a=a+0.1,
+  a=a+1,
   pair=3,
   type=1,
   include=NA
@@ -95,23 +113,133 @@ active <- which(part[,"include"]==1)
 sigma <- c(part[active, c("x1","x2")])
 VTsum <-  c(part[active,c("y1","y2")])
 mM <- findSupport(VTsum, sigma, D31["a"], D32["a"])
-D31["b"] <- D32["b"] <- runif(1,mM[1],mM[2])
+D31["b"] <- D32["b"] <- 0.5 #runif(1,mM[1],mM[2])
+part2 <- findVert(part, D31)
+part2 <- findVert(part2, D32)
 ```
 
 
 
 
-```{r construction_intro_plot, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
-#dev.hold()
-#par(tck = 0.02, mgp = c(1.7, 0.3, 0))
-plotpart2(part, xlim=c(0,2.5), ylim=c(0,5.6), lines=TRUE, edges=FALSE, 
-          main="Step2:")
+```{r construction_intro_plot00, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5, interval=.2}
+par(bg = "white")
+xlim <- c(0,2)
+ylim <- c(0,6.5)
+parttemp <- rbind(part,D31,D32)
+parttemp[, "include"] <- 1
+#
+plot(0, 0, type="n", xlim=xlim, ylim=ylim, axes=FALSE, 
+     xaxs="i", yaxs="i", xlab="x", ylab="y", 
+      main="Data")
+ axis(1);axis(2)
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, col.line=rep(c("blue","green", "red"),each=2), 
+          main="Sampling of ribbons")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+D1 <- D11
+D2 <- D12
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+D1 <- D21
+D2 <- D22
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+D1 <- D31
+D2 <- D32
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
 plot.new()
-#ani.pause()
-#par(tck = 0.02, mgp = c(1.7, 0.3, 0))
-plotpart2(part, xlim=c(0,2.5), ylim=c(0,5.6), lines=TRUE,
-          main="Step3:")
-#ani.pause()
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Polyhedron")
+D1 <- D11
+D2 <- D12
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+D1 <- D21
+D2 <- D22
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+D1 <- D31
+D2 <- D32
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+```
+
+
+--- &twocolcustomwidth 
+
+## Polyhedra construction: algorithm 
+
+*** {name: left, width: "33%"}
+
+- *Step 1:* the slopes of the first two pairs of lines are sampled without restriction
+
+- *Step 2:* the polyhedron is computed
+
+- *Step 3:* the slope of the next pair is sampled in a constrained range, assuring there's an intersection
+
+- *Step 4*: the polyhedron is  updated
+
+- *Repeat* steps 3 and 4
+
+*** {name: right, width: "63%"}
+
+
+```{r construction_intro_plot01, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5, interval=.2}
+par(bg = "white")
+xlim <- c(0,2)
+ylim <- c(0,6.5)
+# #
+# plot(0, 0, type="n", xlim=xlim, ylim=ylim, axes=FALSE, 
+#      xaxs="i", yaxs="i", xlab="x", ylab="y", 
+#       main="Data")
+#  axis(1);axis(2)
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# # plot.new()
+# #
+# plotpart2(part[part[,"pair"]==1,], xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+#           main="Step1:")
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+# #
+# plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+#           main="Step2:")
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+#
+plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+          col.line=rep(c("blue","green"),each=2, col.edge="black"),
+          main="Step 1:")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, 
+          col.line=rep(c("blue","green"),each=2), col.edge="black",
+          main="Step 2:")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Step 3")
+plotpart2(part, lines=FALSE, add=TRUE, col.edge="black")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Step 4")
+plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black" )
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
 ```
 
 
@@ -119,4 +247,12 @@ plotpart2(part, xlim=c(0,2.5), ylim=c(0,5.6), lines=TRUE,
 
 ## What do we need ?
 
-Each line has two points
+- Compute intersection : 
+
+- Line representation : 
+
+  - A line is active and removed off...
+  
+  - Each active line has two points forming an edge
+
+
