@@ -17,6 +17,16 @@ library(knitr)
 library(animation)
 library(scales)
 opts_chunk$set(fig.path="assets/fig/JuliaGFI00-")
+hook_scianimator <- function (x, options) 
+{
+    fig.num = options$fig.num
+    base = "" #opts_knit$get("base.url") %n% ""
+    id = gsub("[^[:alnum:]]", "_", options$label)
+    sprintf("\n<div class=\"scianimator\">\n<div id=\"%s\" style=\"display: inline-block;\">\n</div>\n</div>\n<script type=\"text/javascript\">\n  (function($) {\n    $(document).ready(function() {\n  %s\n    var imgs = Array(%s);\n      for (i=0; ; i++) {\n        if (i == imgs.length) break;\n        imgs[i] = \"%s%s\" + (i + 1) + \".%s\";\n      }\n      $(\"#%s\").scianimator({\n          \"images\": imgs,\n           \"controls\": [\"previous\",  \"next\"],\n \"keyboard\": false,\n \"loopmode\": \"none\",\n \"defaultFrame\": 0\n    });\n     });\n  })(jQuery);\n</script>\n", 
+        id, id, fig.num, base, sub(stringr::str_c(fig.num, "$"), "", x[1]), 
+        x[2], id, id)
+}
+assignInNamespace("hook_scianimator",hook_scianimator, ns="knitr")
 opts_knit$set(animation.fun = hook_scianimator)
 set.seed(666)
 ```
@@ -121,7 +131,7 @@ part2 <- findVert(part2, D32)
 
 
 
-```{r construction_intro_plot00, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5, interval=.2}
+```{r construction_intro_plot00, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
 par(bg = "white")
 xlim <- c(0,2)
 ylim <- c(0,6.5)

@@ -106,18 +106,20 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 <script type="text/javascript">
   (function($) {
     $(document).ready(function() {
-      var imgs = Array(3);
+  construction_intro_plot00
+    var imgs = Array(3);
       for (i=0; ; i++) {
         if (i == imgs.length) break;
         imgs[i] = "assets/fig/JuliaGFI00-construction_intro_plot00" + (i + 1) + ".png";
       }
       $("#construction_intro_plot00").scianimator({
           "images": imgs,
-          "delay": 200,
-          "controls": ["first", "previous", "play", "next", "last", "loop", "speed"],
-      });
-      $("#construction_intro_plot00").scianimator("play");
+           "controls": ["previous",  "next"],
+ "keyboard": false,
+ "loopmode": "none",
+ "defaultFrame": 0
     });
+     });
   })(jQuery);
 </script>
 
@@ -155,18 +157,20 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 <script type="text/javascript">
   (function($) {
     $(document).ready(function() {
-      var imgs = Array(4);
+  construction_intro_plot01
+    var imgs = Array(4);
       for (i=0; ; i++) {
         if (i == imgs.length) break;
         imgs[i] = "assets/fig/JuliaGFI00-construction_intro_plot01" + (i + 1) + ".png";
       }
       $("#construction_intro_plot01").scianimator({
           "images": imgs,
-          "delay": 200,
-          "controls": ["first", "previous", "play", "next", "last", "loop", "speed"],
-      });
-      $("#construction_intro_plot01").scianimator("play");
+           "controls": ["previous",  "next"],
+ "keyboard": false,
+ "loopmode": "none",
+ "defaultFrame": 0
     });
+     });
   })(jQuery);
 </script>
 
