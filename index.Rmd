@@ -1,0 +1,121 @@
+---
+title       : Julia implementation of GFI
+subtitle    : Part 0 The polyhedra constructions
+author      : Stephane Laurent
+job         : 
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : [bootstrap, mathjax, scianimator]          
+mode        : selfcontained # {standalone, draft}
+---
+
+```{r setup, echo=FALSE, cache=FALSE}
+#source("assets/R/slidify_macros.R")
+source('D:/Work/Fiducial/R/particle_01_functions.R')
+library(knitr)
+library(animation)
+opts_chunk$set(fig.path="assets/fig/JuliaGFI00-")
+opts_knit$set(animation.fun = hook_scianimator)
+```
+
+## Goal 
+
+hello 
+
+
+---
+
+## Problem adressed in these slides 
+
+ff
+
+
+--- &twocolcustomwidth 
+
+## Polyhedra constructions 
+
+*** {name: left, width: "33%"}
+
+aaaaa
+
+*** {name: right, width: "63%"}
+
+```{r construction_intro, echo=FALSE}
+# init 
+D11 <- newD(list(
+  a=1,
+  b=1,
+  pair=1,
+  type=0, # low
+  include=1)
+  )
+D12 <- newD(list(
+  a=2, 
+  b=1, # must be equal  to D11
+  pair=1,
+  type=1,
+  include=1)
+)
+D21 <- newD(list(
+  a=4,
+  b=-1,
+  pair=2,
+  type=0,
+  include=1)
+)
+D22 <- newD(list(
+  a=5,
+  b=-1,
+  pair=2,
+  type=1,
+  include=1)
+)
+D11["x1"] <- D21["x1"] <- intersect(D11,D21)
+D11["x2"] <- D22["x1"] <- intersect(D11,D22)
+D12["x1"] <- D21["x2"] <- intersect(D12,D21)
+D12["x2"] <- D22["x2"] <- intersect(D12,D22)
+part <- rbind(D11,D12,D21,D22)
+part[, c("y1", "y2")] <-  vertices(part)
+#
+a <- rnorm(1,4)
+D31 <- newD(list(
+  a=a,
+  pair=3,
+  type=0,
+  include=NA)
+)
+D32 <- newD(list(
+  a=a+0.1,
+  pair=3,
+  type=1,
+  include=NA
+))
+active <- which(part[,"include"]==1)
+sigma <- c(part[active, c("x1","x2")])
+VTsum <-  c(part[active,c("y1","y2")])
+mM <- findSupport(VTsum, sigma, D31["a"], D32["a"])
+D31["b"] <- D32["b"] <- runif(1,mM[1],mM[2])
+```
+
+
+
+
+```{r construction_intro_plot, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
+#dev.hold()
+#par(tck = 0.02, mgp = c(1.7, 0.3, 0))
+plotpart2(part, xlim=c(0,2.5), ylim=c(0,5.6), lines=TRUE, edges=FALSE, 
+          main="Step2:")
+plot.new()
+#ani.pause()
+#par(tck = 0.02, mgp = c(1.7, 0.3, 0))
+plotpart2(part, xlim=c(0,2.5), ylim=c(0,5.6), lines=TRUE)
+#ani.pause()
+```
+
+
+---
+
+## What do we need ?
+
+Each line has two points
