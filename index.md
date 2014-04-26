@@ -130,16 +130,107 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
 
 
----
+--- &twocolcustomwidth
 
-## What do we need ?
+## Line and polyhedron representation 
 
-- Compute intersection : 
-
-- Line representation : 
-
-  - A line is active and removed off...
+  - A line has a ''type'': upper or lower
   
-  - Each active line has two points forming an edge
+  - A line has $0$, $1$ or $2$ intersections with the active polyhedron
+
+*** {name: left, width: "60%"}
 
 
+<div class="scianimator">
+<div id="line_plot01" style="display: inline-block;">
+</div>
+</div>
+<script type="text/javascript">
+  (function($) {
+    $(document).ready(function() {
+  line_plot01
+    var imgs = Array(4);
+      for (i=0; ; i++) {
+        if (i == imgs.length) break;
+        imgs[i] = "assets/fig/JuliaGFI00-line_plot01" + (i + 1) + ".png";
+      }
+      $("#line_plot01").scianimator({
+          "images": imgs,
+           "controls": ["previous",  "next"],
+ "keyboard": false,
+ "loopmode": "none",
+ "defaultFrame": 0
+    });
+     });
+  })(jQuery);
+</script>
+
+
+*** {name: right, width: "40%"}
+
+<hr style="height:30pt; visibility:hidden;"/>
+
+- Only lines having two intersections are kept
+
+- A polyhedron is represented by a set of such lines
+
+
+--- &twocolcustomwidth
+
+## Line and polyhedron in Julia  
+
+I will firstly try to deal with lines and polyhedra using these types and macros:
+
+*** {name: left, width: "60%"}
+
+<pre><code class="r" style="font-size:66%">type Line
+        a::Float64   # intercept
+        b::BigFloat  # slope
+        x1::BigFloat # x-coordinate of first vertice
+        y1::BigFloat # y-coordinate of first vertice
+        x2::BigFloat # x-coordinate of second vertice
+        y2::BigFloat # y-coordinate of second vertice
+        typ::Bool    # type of the line (true:upper, false:lower)
+end
+</code></pre>
+
+
+*** {name: right, width: "40%"}
+
+<pre><code class="r" style="font-size:66%">type Poly
+        a::Vector{Float64}
+        b::Vector{BigFloat}
+        x1::Vector{BigFloat}
+        y1::Vector{BigFloat}
+        x2::Vector{BigFloat}
+        y2::Vector{BigFloat}
+        typ::Vector{Bool}
+end
+</code></pre>
+
+
+*** =fullwidth
+
+
+<pre><code class="r" style="font-size:66%">macro addLine(poly, line)
+        for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+          @eval $poly.$op = [$poly.$op, $line.$op]
+        end
+end
+</code></pre>
+
+
+<pre><code class="r" style="font-size:66%">macro removeLine(poly, index)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        @eval splice!($poly.$op, $index)
+    end
+end
+</code></pre>
+
+
+
+--- 
+
+## Computing intersection 
+
+to be continued.... 

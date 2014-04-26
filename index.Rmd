@@ -11,7 +11,7 @@ mode        : selfcontained # {standalone, draft}
 ---
 
 ```{r setup, echo=FALSE, cache=FALSE}
-#source("assets/R/slidify_macros.R")
+source("assets/R/slidifyMacros.R")
 source('D:/Work/Fiducial/R/particle_01_functions.R')
 library(knitr)
 library(animation)
@@ -253,16 +253,109 @@ points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
 ```
 
 
----
+--- &twocolcustomwidth
 
-## What do we need ?
+## Line and polyhedron representation 
 
-- Compute intersection : 
-
-- Line representation : 
-
-  - A line is active and removed off...
+  - A line has a ''type'': upper or lower
   
-  - Each active line has two points forming an edge
+  - A line has $0$, $1$ or $2$ intersections with the active polyhedron
+
+*** {name: left, width: "60%"}
+
+```{r line_plot01, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
+par(bg = "white")
+plot0 <- function(){
+  par(mar=c(1,1,0.1,1))
+  plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, 
+          col.line=rep(c("blue","green"),each=2), col.edge="black",
+          main="", xlab=NA, ylab=NA)
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+}
+plot0()
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=2.8, col="red", lwd=2)
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=0.96, col="red", lwd=2)
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=1.4, col="red", lwd=2)
+```
+
+*** {name: right, width: "40%"}
+
+`r linebreak("30pt")`
+
+- Only lines having two intersections are kept
+
+- A polyhedron is represented by a set of such lines
 
 
+--- &twocolcustomwidth
+
+## Line and polyhedron in Julia  
+
+I will firstly try to deal with lines and polyhedra using these types and macros:
+
+*** {name: left, width: "60%"}
+
+```{r type_line, results='asis', echo=FALSE}
+codechunk("type Line
+        a::Float64   # intercept
+        b::BigFloat  # slope
+        x1::BigFloat # x-coordinate of first vertice
+        y1::BigFloat # y-coordinate of first vertice
+        x2::BigFloat # x-coordinate of second vertice
+        y2::BigFloat # y-coordinate of second vertice
+        typ::Bool    # type of the line (true:upper, false:lower)
+end", size="66%")
+```
+
+*** {name: right, width: "40%"}
+
+```{r type_poly, results='asis', echo=FALSE}
+codechunk("type Poly
+        a::Vector{Float64}
+        b::Vector{BigFloat}
+        x1::Vector{BigFloat}
+        y1::Vector{BigFloat}
+        x2::Vector{BigFloat}
+        y2::Vector{BigFloat}
+        typ::Vector{Bool}
+end", size="66%")
+```
+
+*** =fullwidth
+
+
+```{r macro_addline, results='asis', echo=FALSE}
+codechunk("macro addLine(poly, line)
+        for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+          @eval $poly.$op = [$poly.$op, $line.$op]
+        end
+end", size="66%")
+```
+
+```{r macro_removeline, results='asis', echo=FALSE}
+codechunk("macro removeLine(poly, index)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        @eval splice!($poly.$op, $index)
+    end
+end", size="66%")
+```
+
+
+--- 
+
+## Computing intersection 
+
+to be continued.... 
