@@ -56,8 +56,6 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
 
 
-
-
 <div class="scianimator">
 <div id="construction_intro_plot00" style="display: inline-block;">
 </div>
@@ -231,6 +229,32 @@ end
 
 --- 
 
-## Computing intersection 
+## Computing the range and intersection 
 
-to be continued.... 
+Recall the two steps, when a particle and a new pair of starting points 
+on the $y$-axis is given:
+
+- Calculate the range of the possible slope of the new ribbon
+
+- Generate the new ribbon and compute the new particle
+
+
+
+
+
+
+
+
+<img src="assets/img/range.gif" title="plot of chunk xxx" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">
+
+
+
+
+--- 
+
+## Computing the range
+
+Two different situations are considered for the range calculation:
+
+
+
