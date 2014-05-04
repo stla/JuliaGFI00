@@ -30,14 +30,27 @@ macro removeLine(poly, index)
     end
 end
 
+# get line in row i of poly
 function getLine(poly::Poly, i::Int)
         return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
 end
 
-# how to define a constant ? :
-emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0),Array(BigFloat,0),Array(BigFloat,0),Array(BigFloat,0),Array(Bool,0))
+# the empty particle
+emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), Array(Bool,0));
 
+# generates a new line with given intercept and slope - I'm using BigFloat(Inf) as the 'NA' BigFloat
 function newLine(a::Float64, b::BigFloat, typ::Bool)
         return Line(a, b, BigFloat(Inf), BigFloat(Inf), BigFloat(Inf), BigFloat(Inf), typ)
 end
 
+# returns the intersection of two lines
+function intersect(D1::Line, D2::Line)
+        x = (D1.a-D2.a)/(D2.b-D1.b)
+        return x, D1.a + D1.b*x
+end
+
+# find the range
+function findRange(poly::Poly, lower::Float64, upper::Float64)
+        slopes = [(poly.y1-lower)./poly.x1 (poly.y2-lower)./poly.x2 (poly.y1-upper)./poly.x1 (poly.y2-upper)./poly.x2]
+        return minimum(slopes), maximum(slopes)
+end

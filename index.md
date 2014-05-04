@@ -13,16 +13,28 @@ mode        : selfcontained # {standalone, draft}
 
 
 
+
+
 ## Goal 
 
 - Implement Ciszewski & Hannig's sampler of the fiducial distributino for normal linear mixed models
 
-- *Why Julia ?* 
+### Why Julia ?
 
   - The algorithm is computationnaly intensive
   
   - It requires a high numerical precision; we hope the `BigFloat` type in Julia will achieve this precision 
+  
+  - Currently, the available Matlab implementation is not sufficient for large datasets
 
+### Why these slides ?
+
+  - I'm not a Julia specialist; these slides should firstly help me to request some help 
+
+  - [Ciszewski & Hannig's paper](http://www.unc.edu/~hannig/publications/CisewskiHannig2012.pdf) is not easy to read for non-mathematicians, and 
+  the algorithm may appear complicated to us
+  
+  - Because I like the [slidify package](http://slidify.org/)
 
 ---
 
@@ -34,7 +46,6 @@ random polyhedra in the Euclidean space
 - This is the point requiring high numerical precision, because the 
 polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
-- I'm not a Julia specialist; these slides should firstly help me to request some help
 
 
 --- &twocolcustomwidth 
@@ -227,6 +238,61 @@ end
 
 
 
+--- &twocolcustomwidth
+
+## The first particle 
+
+
+In reality the first particle is sampled at random, but we define a fixed 
+particle for illustration.
+
+*** {name: left, width: "49%"}
+
+<pre><code class="r" style="font-size:66%"># the empty particle
+emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(Bool,0));
+
+# generates a new line with given intercept and slope 
+# - I'm using BigFloat(Inf) as the 'NA' BigFloat
+function newLine(a::Float64, b::BigFloat, typ::Bool)
+        return Line(a, b, BigFloat(Inf), BigFloat(Inf), BigFloat(Inf), 
+  BigFloat(Inf), typ)
+end
+
+# returns the intersection of two lines
+function intersect(D1::Line, D2::Line)
+        x = (D1.a-D2.a)/(D2.b-D1.b)
+        return x, D1.a + D1.b*x
+end
+</code></pre>
+
+
+*** {name: right, width: "51%"}
+
+<pre><code class="r" style="font-size:66%"># first ribbon:
+D1_low = newLine(0.4, BigFloat(1.5), false);
+D1_upp = newLine(1.5, BigFloat(1.5), true);
+# second ribbon:
+D2_low = newLine(4.5, BigFloat(-2), false);
+D2_upp = newLine(5.9, BigFloat(-2), true);
+
+# find the intersections:
+(D1_low.x1, D1_low.y1) = (D2_low.x1, D2_low.y1) = intersect(D1_low,D2_low);
+(D1_low.x2, D1_low.y2) = (D2_upp.x1, D2_upp.y1) = intersect(D1_low,D2_upp);
+(D1_upp.x1, D1_upp.y1) = (D2_low.x2, D2_low.y2) = intersect(D1_upp,D2_low);
+(D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
+
+# create the particle (why does it modify the value of emptyPlot ??) :
+poly = emptyPoly
+@addLine poly D1_low
+@addLine poly D1_upp
+@addLine poly D2_low
+@addLine poly D2_upp
+</code></pre>
+
+
+
 --- 
 
 ## Computing the range and intersection 
@@ -245,7 +311,7 @@ on the $y$-axis is given:
 
 
 
-<img src="assets/img/range.gif" title="plot of chunk xxx" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">
+<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">
 
 
 
@@ -254,7 +320,48 @@ on the $y$-axis is given:
 
 ## Computing the range
 
-Two different situations are considered for the range calculation:
+Two different situations are distinguished for the range calculation:
+
+![plot of chunk twosituations](assets/fig/JuliaGFI00-twosituations.png) 
 
 
+The first situation is easier to handle. 
+We will restrict to this situation in these slides.
 
+
+--- &twocolcustomwidth
+
+## The range in the simple situation 
+
+Denote by $P$ the current particle and by 
+$\color{red}{\{a^-, a^+\}}$ the new pair of points on the $y$-axis. 
+Then the possible range for the slope of the new ribbon is the interval 
+$(m,M)$ where 
+$$ 
+m = \min_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+\quad \text{and} \quad 
+M = \max_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+$$
+
+<pre><code class="r" style="font-size:71%">function findRange(poly::Poly, lower::Float64, upper::Float64)
+        slopes = [(poly.y1-lower)./poly.x1 (poly.y2-lower)./poly.x2 (poly.y1-upper)./poly.x1 (poly.y2-upper)./poly.x2]
+        return minimum(slopes), maximum(slopes)
+end
+</code></pre>
+
+
+*** {name: left, width: "51%"}
+
+<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="65%">
+
+
+*** {name: right, width: "45%"}
+
+<hr style="height:30pt; visibility:hidden;"/>
+
+It remains to write a function calculating the new particle once the new ribbon 
+is sampled
+
+--- 
+
+to continue....

@@ -10,7 +10,10 @@ widgets     : [bootstrap, mathjax, scianimator]
 mode        : selfcontained # {standalone, draft}
 ---
 
-```{r setup, echo=FALSE, cache=FALSE}
+
+
+```{r setup, echo=FALSE, cache=FALSE, message=FALSE}
+#setwd("D:/Github/JuliaGFI00"); library(slidify); slidify("index.Rmd")
 source("assets/R/slidifyMacros.R")
 source('D:/Work/Fiducial/R/particle_01_functions.R')
 library(knitr)
@@ -35,12 +38,22 @@ set.seed(666)
 
 - Implement Ciszewski & Hannig's sampler of the fiducial distributino for normal linear mixed models
 
-- *Why Julia ?* 
+### Why Julia ?
 
   - The algorithm is computationnaly intensive
   
   - It requires a high numerical precision; we hope the `BigFloat` type in Julia will achieve this precision 
+  
+  - Currently, the available Matlab implementation is not sufficient for large datasets
 
+### Why these slides ?
+
+  - I'm not a Julia specialist; these slides should firstly help me to request some help 
+
+  - [Ciszewski & Hannig's paper](http://www.unc.edu/~hannig/publications/CisewskiHannig2012.pdf) is not easy to read for non-mathematicians, and 
+  the algorithm may appear complicated to us
+  
+  - Because I like the [slidify package](http://slidify.org/)
 
 ---
 
@@ -52,7 +65,6 @@ random polyhedra in the Euclidean space
 - This is the point requiring high numerical precision, because the 
 polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
-- I'm not a Julia specialist; these slides should firstly help me to request some help
 
 
 --- &twocolcustomwidth 
@@ -71,7 +83,7 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
 ```{r construction_intro, echo=FALSE, cache=FALSE}
 # init 
-source("./assets/R/global.R")
+source("./assets/R/sample1.R")
 D31["b"] <- D32["b"] <- 0.5 #runif(1,mM[1],mM[2])
 part2 <- findVert(part, D31)
 part2 <- findVert(part2, D32)
@@ -301,6 +313,61 @@ end", size="66%")
 ```
 
 
+--- &twocolcustomwidth
+
+## The first particle 
+
+
+In reality the first particle is sampled at random, but we define a fixed 
+particle for illustration.
+
+*** {name: left, width: "49%"}
+
+```{r julia_intersect, results='asis', echo=FALSE, cache=FALSE}
+codechunk("# the empty particle
+emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(Bool,0));
+
+# generates a new line with given intercept and slope 
+# - I'm using BigFloat(Inf) as the 'NA' BigFloat
+function newLine(a::Float64, b::BigFloat, typ::Bool)
+        return Line(a, b, BigFloat(Inf), BigFloat(Inf), BigFloat(Inf), 
+  BigFloat(Inf), typ)
+end
+
+# returns the intersection of two lines
+function intersect(D1::Line, D2::Line)
+        x = (D1.a-D2.a)/(D2.b-D1.b)
+        return x, D1.a + D1.b*x
+end", size="66%")
+```
+
+*** {name: right, width: "51%"}
+
+```{r julia_firstP, results='asis', echo=FALSE, cache=FALSE}
+codechunk("# first ribbon:
+D1_low = newLine(0.4, BigFloat(1.5), false);
+D1_upp = newLine(1.5, BigFloat(1.5), true);
+# second ribbon:
+D2_low = newLine(4.5, BigFloat(-2), false);
+D2_upp = newLine(5.9, BigFloat(-2), true);
+
+# find the intersections:
+(D1_low.x1, D1_low.y1) = (D2_low.x1, D2_low.y1) = intersect(D1_low,D2_low);
+(D1_low.x2, D1_low.y2) = (D2_upp.x1, D2_upp.y1) = intersect(D1_low,D2_upp);
+(D1_upp.x1, D1_upp.y1) = (D2_low.x2, D2_low.y2) = intersect(D1_upp,D2_low);
+(D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
+
+# create the particle (why does it modify the value of emptyPlot ??) :
+poly = emptyPoly
+@addLine poly D1_low
+@addLine poly D1_upp
+@addLine poly D2_low
+@addLine poly D2_upp", size="66%")
+```
+
+
 --- 
 
 ## Computing the range and intersection 
@@ -315,7 +382,7 @@ on the $y$-axis is given:
 
 ```{r init_newribbon, echo=FALSE, cache=FALSE}
 # init 
-source("./assets/R/global.R")
+source("./assets/R/sample1.R")
 seq.b <- seq(mM[1]*0.98, mM[2]*0.98, len=80)
 ```
 
@@ -332,7 +399,7 @@ if(!file.exists("./assets/img/range.gif")){
       xlim <- c(0,2)
       ylim <- c(0,6.5)
       #
-        par(mar=c(3,3,1,1))
+      par(mar=c(3,3,1,1))
       plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
                 main=NA)
       D1 <- D11
@@ -354,8 +421,8 @@ if(!file.exists("./assets/img/range.gif")){
   }
 ```
 
-```{r, results='asis', echo=FALSE}
-cat('<img src="assets/img/range.gif" title="plot of chunk xxx" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">')
+```{r showgif1, results='asis', echo=FALSE}
+cat('<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">')
 ```
 
 
@@ -364,7 +431,69 @@ cat('<img src="assets/img/range.gif" title="plot of chunk xxx" alt="plot of chun
 
 ## Computing the range
 
-Two different situations are considered for the range calculation:
+Two different situations are distinguished for the range calculation:
+
+```{r twosituations, echo=FALSE,  fig.width=13, fig.height=4, cache=FALSE}
+layout(t(c(1,2)))
+par(mar=c(5,3,1,1))
+plotpart2(part, xlim=xlim, ylim=ylim,  edges=TRUE, vertices=TRUE, lines=FALSE,
+          col.edge="black", col.line=rep(c("blue","green"),each=2), main=NA, 
+          xlab=NA, ylab=NA, 
+          sub=expression(italic("the y-axis doesn't cross the particle")), cex.sub=2)
+#       D1 <- D11
+#       D2 <- D12
+#       polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+#       D1 <- D21
+#       D2 <- D22
+#       polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+par(mar=c(5,3,1,1))
+partemp <- part
+partemp[,"x1"] <- part[,"x1"] - 1.37
+partemp[,"x2"] <- part[,"x2"] - 1.37
+plotpart2(partemp, xlim=c(-1,1), ylim=ylim,  edges=TRUE, vertices=TRUE, lines=FALSE,
+          col.edge="black", col.line=rep(c("blue","green"),each=2), main=NA, 
+                    xlab=NA, ylab=NA, 
+          sub=expression(italic("the y-axis crosses the particle")), cex.sub=2)
+```
+
+The first situation is easier to handle. 
+We will restrict to this situation in these slides.
 
 
+--- &twocolcustomwidth
 
+## The range in the simple situation 
+
+Denote by $P$ the current particle and by 
+$\color{red}{\{a^-, a^+\}}$ the new pair of points on the $y$-axis. 
+Then the possible range for the slope of the new ribbon is the interval 
+$(m,M)$ where 
+$$ 
+m = \min_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+\quad \text{and} \quad 
+M = \max_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+$$
+
+```{r julia_range, results='asis', echo=FALSE}
+codechunk("function findRange(poly::Poly, lower::Float64, upper::Float64)
+        slopes = [(poly.y1-lower)./poly.x1 (poly.y2-lower)./poly.x2 (poly.y1-upper)./poly.x1 (poly.y2-upper)./poly.x2]
+        return minimum(slopes), maximum(slopes)
+end", size="71%")
+```
+
+*** {name: left, width: "51%"}
+
+```{r showgif2, results='asis', echo=FALSE}
+cat('<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="65%">')
+```
+
+*** {name: right, width: "45%"}
+
+`r linebreak("30pt")`
+
+It remains to write a function calculating the new particle once the new ribbon 
+is sampled
+
+--- 
+
+to continue....
