@@ -6,13 +6,13 @@ job         :
 framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
 highlighter : highlight.js  # {highlight.js, prettify, highlight}
 hitheme     : tomorrow      # 
-widgets     : [bootstrap, mathjax, scianimator]          
+widgets     : [bootstrap, mathjax, scianimator]
 mode        : selfcontained # {standalone, draft}
 ---
 
 
 
-```{r setup, echo=FALSE, cache=FALSE, message=FALSE}
+```{r setup, echo=FALSE, cache=FALSE, message=FALSE, warning=FALSE}
 #setwd("D:/Github/JuliaGFI00"); library(slidify); slidify("index.Rmd")
 source("assets/R/slidifyMacros.R")
 source('D:/Work/Fiducial/R/particle_01_functions.R')
@@ -36,7 +36,7 @@ set.seed(666)
 
 ## Goal 
 
-- Implement Ciszewski & Hannig's sampler of the fiducial distributino for normal linear mixed models
+- Implement Ciszewski & Hannig's sampler of the fiducial distribution for normal linear mixed models
 
 ### Why Julia ?
 
@@ -366,6 +366,35 @@ poly = emptyPoly
 @addLine poly D2_low
 @addLine poly D2_upp", size="66%")
 ```
+
+
+--- &twocolcustomwidth
+
+## Plotting a Javascript particle with Gadfly
+
+
+```{r julia_plotPart, results='asis', echo=FALSE, cache=FALSE}
+codechunk('using Gadfly
+function plotPart(poly::Poly)
+        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        return p
+end
+p = plotPart(poly)
+draw(D3("part01.js", 650px, 350px), p)', size="66%")
+```
+
+*** {name: left, width: "66%"}
+
+<!-- Placed whereever you want the graphic to be rendered. -->
+<iframe src="assets/img/part01.html" style="border: none; "></iframe>
+
+*** {name: right, width: "32%"}
+
+`r linebreak("30pt")`
+
+Well, the vertices are correct but that's not really the particle ! 
+[Gadfly](https://github.com/dcjones/Gadfly.jl) package is awesome, but 
+currently there's no built-in function to draw segments ? 
 
 
 --- 

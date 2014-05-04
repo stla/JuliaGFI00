@@ -6,7 +6,7 @@ job         :
 framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
 highlighter : highlight.js  # {highlight.js, prettify, highlight}
 hitheme     : tomorrow      # 
-widgets     : [bootstrap, mathjax, scianimator]          
+widgets     : [bootstrap, mathjax, scianimator]
 mode        : selfcontained # {standalone, draft}
 ---
 
@@ -17,7 +17,7 @@ mode        : selfcontained # {standalone, draft}
 
 ## Goal 
 
-- Implement Ciszewski & Hannig's sampler of the fiducial distributino for normal linear mixed models
+- Implement Ciszewski & Hannig's sampler of the fiducial distribution for normal linear mixed models
 
 ### Why Julia ?
 
@@ -291,6 +291,35 @@ poly = emptyPoly
 @addLine poly D2_upp
 </code></pre>
 
+
+
+--- &twocolcustomwidth
+
+## Plotting a Javascript particle with Gadfly
+
+
+<pre><code class="r" style="font-size:66%">using Gadfly
+function plotPart(poly::Poly)
+        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        return p
+end
+p = plotPart(poly)
+draw(D3("part01.js", 650px, 350px), p)
+</code></pre>
+
+
+*** {name: left, width: "66%"}
+
+<!-- Placed whereever you want the graphic to be rendered. -->
+<iframe src="assets/img/part01.html" style="border: none; "></iframe>
+
+*** {name: right, width: "32%"}
+
+<hr style="height:30pt; visibility:hidden;"/>
+
+Well, the vertices are correct but that's not really the particle ! 
+[Gadfly](https://github.com/dcjones/Gadfly.jl) package is awesome, but 
+currently there's no built-in function to draw segments ? 
 
 
 --- 

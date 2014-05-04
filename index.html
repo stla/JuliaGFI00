@@ -52,7 +52,7 @@
   </hgroup>
   <article data-timings="">
     <ul>
-<li>Implement Ciszewski &amp; Hannig&#39;s sampler of the fiducial distributino for normal linear mixed models</li>
+<li>Implement Ciszewski &amp; Hannig&#39;s sampler of the fiducial distribution for normal linear mixed models</li>
 </ul>
 
 <h3>Why Julia ?</h3>
@@ -360,6 +360,41 @@ poly = emptyPoly
 
 <slide class="" id="slide-8" style="background:;">
   <hgroup>
+    <h2>Plotting a Javascript particle with Gadfly</h2>
+  </hgroup>
+  <article data-timings="">
+    <pre><code class="r" style="font-size:66%">using Gadfly
+function plotPart(poly::Poly)
+        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        return p
+end
+p = plotPart(poly)
+draw(D3("part01.js", 650px, 350px), p)
+</code></pre>
+
+<div class='leftcol' style='width:66%;'>
+  <!-- Placed whereever you want the graphic to be rendered. -->
+
+<iframe src="assets/img/part01.html" style="border: none; "></iframe>
+
+</div>
+<div class='rightcol' style='width:32%;'>
+  <hr style="height:30pt; visibility:hidden;"/>
+
+<p>Well, the vertices are correct but that&#39;s not really the particle ! 
+<a href="https://github.com/dcjones/Gadfly.jl">Gadfly</a> package is awesome, but 
+currently there&#39;s no built-in function to draw segments ? </p>
+
+</div>
+<div style='clear:both'>
+  
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-9" style="background:;">
+  <hgroup>
     <h2>Computing the range and intersection</h2>
   </hgroup>
   <article data-timings="">
@@ -377,7 +412,7 @@ on the \(y\)-axis is given:</p>
   <!-- Presenter Notes -->
 </slide>
 
-<slide class="" id="slide-9" style="background:;">
+<slide class="" id="slide-10" style="background:;">
   <hgroup>
     <h2>Computing the range</h2>
   </hgroup>
@@ -393,7 +428,7 @@ We will restrict to this situation in these slides.</p>
   <!-- Presenter Notes -->
 </slide>
 
-<slide class="" id="slide-10" style="background:;">
+<slide class="" id="slide-11" style="background:;">
   <hgroup>
     <h2>The range in the simple situation</h2>
   </hgroup>
@@ -432,7 +467,7 @@ is sampled</p>
   <!-- Presenter Notes -->
 </slide>
 
-<slide class="" id="slide-11" style="background:;">
+<slide class="" id="slide-12" style="background:;">
   <article data-timings="">
     <p>to continue....</p>
 
@@ -488,26 +523,32 @@ is sampled</p>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=8 title='Computing the range and intersection'>
+        data-slide=8 title='Plotting a Javascript particle with Gadfly'>
          8
       </a>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=9 title='Computing the range'>
+        data-slide=9 title='Computing the range and intersection'>
          9
       </a>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=10 title='The range in the simple situation'>
+        data-slide=10 title='Computing the range'>
          10
       </a>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=11 title=''>
+        data-slide=11 title='The range in the simple situation'>
          11
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=12 title=''>
+         12
       </a>
     </li>
   </ul>

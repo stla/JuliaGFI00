@@ -54,3 +54,10 @@ function findRange(poly::Poly, lower::Float64, upper::Float64)
         slopes = [(poly.y1-lower)./poly.x1 (poly.y2-lower)./poly.x2 (poly.y1-upper)./poly.x1 (poly.y2-upper)./poly.x2]
         return minimum(slopes), maximum(slopes)
 end
+
+# plot particle
+using Gadfly
+function plotPart(poly::Poly)
+        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        return p
+end
