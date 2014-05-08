@@ -283,8 +283,8 @@ D2_upp = newLine(5.9, BigFloat(-2), true);
 (D1_upp.x1, D1_upp.y1) = (D2_low.x2, D2_low.y2) = intersect(D1_upp,D2_low);
 (D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
 
-# create the particle (why does it modify the value of emptyPlot ??) :
-poly = emptyPoly
+# create the particle :
+poly = deepcopy(emptyPoly)
 @addLine poly D1_low
 @addLine poly D1_upp
 @addLine poly D2_low
@@ -391,9 +391,10 @@ end
 It remains to write a function calculating the new particle once the new ribbon 
 is sampled
 
+
 --- &twocolcustomwidth
 
-## The intersection in the simple situation 
+## The intersection in the simple situation (1/2)
 
 *** {name: left, width: "50%"}
 
@@ -436,6 +437,34 @@ We can remove the first edge:
 For the second edge, there's nothing to do. For the third and fourth edges, 
 we calculate the intersection.
 
+
 --- 
 
-## to continue...
+## The intersection in the simple situation (2/2)
+
+We will need a function to extract a line from a particle
+
+<pre><code class="r" style="font-size:61%"># get line in row i of poly
+function getLine(poly::Poly, i::Int)
+        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
+end
+</code></pre>
+
+
+
+<pre><code class="r" style="font-size:61%">julia> Dinters = find(test.== 1) # should be 0 or 2 elements
+2-element Array{Int64,1}:
+ 3
+ 4
+</code></pre>
+
+
+
+<pre><code class="r" style="font-size:61%">
+</code></pre>
+
+
+
+--- 
+
+## to continue.... 

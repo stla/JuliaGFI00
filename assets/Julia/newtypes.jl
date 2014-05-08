@@ -30,6 +30,28 @@ macro removeLine(poly, index)
     end
 end
 
+function removeLine(poly::Poly, index::Int)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        @eval splice!($poly.$op, $index)
+    end
+end
+
+function removeLine2(poly::Poly, index::Int)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        splice!(getfield(poly, op), index)
+    end
+end
+function removeLines(poly::Poly, indices::BitArray{1})
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        @eval $poly.$op = ($poly.$op)[!$indices]
+    end
+end
+function removeLines2(poly::Poly, indices::BitArray{1})
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op) = (poly.(op))[!indices]
+    end
+end
+
 # get line in row i of poly
 function getLine(poly::Poly, i::Int)
         return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
