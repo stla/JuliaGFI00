@@ -195,10 +195,10 @@ I will firstly try to deal with lines and polyhedra using these types and macros
 <pre><code class="r" style="font-size:66%">type Line
         a::Float64   # intercept
         b::BigFloat  # slope
-        x1::BigFloat # x-coordinate of first vertice
-        y1::BigFloat # y-coordinate of first vertice
-        x2::BigFloat # x-coordinate of second vertice
-        y2::BigFloat # y-coordinate of second vertice
+        x1::BigFloat # x-coordinate of first vertex
+        y1::BigFloat # y-coordinate of first vertex
+        x2::BigFloat # x-coordinate of second vertex
+        y2::BigFloat # y-coordinate of second vertex
         typ::Bool    # type of the line (true:upper, false:lower)
 end
 </code></pre>
@@ -248,7 +248,7 @@ particle for illustration.
 
 *** {name: left, width: "49%"}
 
-<pre><code class="r" style="font-size:66%"># the empty particle
+<pre><code class="r" style="font-size:57%"># the empty particle
 emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), 
   Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), 
   Array(Bool,0));
@@ -270,7 +270,7 @@ end
 
 *** {name: right, width: "51%"}
 
-<pre><code class="r" style="font-size:66%"># first ribbon:
+<pre><code class="r" style="font-size:57%"># first ribbon:
 D1_low = newLine(0.4, BigFloat(1.5), false);
 D1_upp = newLine(1.5, BigFloat(1.5), true);
 # second ribbon:
@@ -391,6 +391,51 @@ end
 It remains to write a function calculating the new particle once the new ribbon 
 is sampled
 
+--- &twocolcustomwidth
+
+## The intersection in the simple situation 
+
+*** {name: left, width: "50%"}
+
+We treat the lower line of the new ribbon first. 
+
+<pre><code class="r" style="font-size:59%"># new ribbon
+D3_low = newLine(2., BigFloat("0.5"), false);
+D3_upp = newLine(3., BigFloat("0.5"), true);
+# first test
+D = D3_low
+test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+test = test1 + test2 # should I use "+" or ".+" ?
+</code></pre>
+
+
+![plot of chunk plot_newribbon_01](assets/fig/JuliaGFI00-plot_newribbon_01.png) 
+
+
+*** {name: right, width: "45%"}
+
+For each edge ($1$, $2$, $3$, $4$) of the current particle, here are the number of 
+vertices above the lower new line:
+
+<pre><code class="r" style="font-size:61%">julia> test
+4-element Array{Int64,1}:
+ 0
+ 2
+ 1
+ 1
+</code></pre>
+
+
+We can remove the first edge:
+
+<pre><code class="r" style="font-size:61%">
+</code></pre>
+
+
+For the second edge, there's nothing to do. For the third and fourth edges, 
+we calculate the intersection.
+
 --- 
 
-to continue....
+## to continue...

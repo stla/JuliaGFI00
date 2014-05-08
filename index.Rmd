@@ -271,10 +271,10 @@ I will firstly try to deal with lines and polyhedra using these types and macros
 codechunk("type Line
         a::Float64   # intercept
         b::BigFloat  # slope
-        x1::BigFloat # x-coordinate of first vertice
-        y1::BigFloat # y-coordinate of first vertice
-        x2::BigFloat # x-coordinate of second vertice
-        y2::BigFloat # y-coordinate of second vertice
+        x1::BigFloat # x-coordinate of first vertex
+        y1::BigFloat # y-coordinate of first vertex
+        x2::BigFloat # x-coordinate of second vertex
+        y2::BigFloat # y-coordinate of second vertex
         typ::Bool    # type of the line (true:upper, false:lower)
 end", size="66%")
 ```
@@ -340,7 +340,7 @@ end
 function intersect(D1::Line, D2::Line)
         x = (D1.a-D2.a)/(D2.b-D1.b)
         return x, D1.a + D1.b*x
-end", size="66%")
+end", size="57%")
 ```
 
 *** {name: right, width: "51%"}
@@ -364,7 +364,7 @@ poly = emptyPoly
 @addLine poly D1_low
 @addLine poly D1_upp
 @addLine poly D2_low
-@addLine poly D2_upp", size="66%")
+@addLine poly D2_upp", size="57%")
 ```
 
 
@@ -523,6 +523,87 @@ cat('<img src="assets/img/range.gif" title="Range of the new ribbon to be sample
 It remains to write a function calculating the new particle once the new ribbon 
 is sampled
 
+--- &twocolcustomwidth
+
+## The intersection in the simple situation 
+
+*** {name: left, width: "50%"}
+
+We treat the lower line of the new ribbon first. 
+
+```{r julia_newribbon_01, results='asis', echo=FALSE}
+codechunk('# new ribbon
+D3_low = newLine(2., BigFloat("0.5"), false);
+D3_upp = newLine(3., BigFloat("0.5"), true);
+# first test
+D = D3_low
+test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+test = test1 + test2 # should I use "+" or ".+" ?', size="59%")
+```
+
+```{r plot_newribbon_01, echo=FALSE,  cache=FALSE,  fig.height=3.8}
+par(bg = "white")
+source("./assets/R/sample1.R")
+D31["b"] <- D32["b"] <- 0.5
+      D31["b"] <- D32["b"] <- 0.5 
+      part2 <- findVert(part, D31)
+      part2 <- findVert(part2, D32)
+      parttemp <- rbind(part,D31,D32)
+      parttemp[, "include"] <- 1
+      par(bg = "white")
+      xlim <- c(0,2)
+      ylim <- c(0,6.5)
+      #
+      par(mar=c(3,3,1,1))
+      plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+                main=NA)
+      D1 <- part[1,]
+      D2 <- part[2,]
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+      text(x=mean(D1[c("x1","x2")]), y= mean(D1[c("y1","y2")]), 
+           labels="1", pos=1, cex=1)
+      text(x=mean(D2[c("x1","x2")]), y= mean(D2[c("y1","y2")]), 
+           labels="2", pos=3, cex=1)
+      D1 <- part[3,]
+      D2 <- part[4,]
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+      text(x=mean(D1[c("x1","x2")]), y= mean(D1[c("y1","y2")]), 
+           labels="3", pos=2, cex=1)
+      text(x=mean(D2[c("x1","x2")]), y= mean(D2[c("y1","y2")]), 
+           labels="4", pos=4, cex=1)
+      D1 <- D31
+      D2 <- D32
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+      plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black")
+      points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+```
+
+*** {name: right, width: "45%"}
+
+For each edge ($1$, $2$, $3$, $4$) of the current particle, here are the number of 
+vertices above the lower new line:
+
+```{r julia_newribbon02, results='asis', echo=FALSE}
+codechunk("julia> test
+4-element Array{Int64,1}:
+ 0
+ 2
+ 1
+ 1", size="61%")
+```
+
+We can remove the first edge:
+
+```{r julia_, results='asis', echo=FALSE}
+codechunk("", size="61%")
+```
+
+For the second edge, there's nothing to do. For the third and fourth edges, 
+we calculate the intersection.
+
 --- 
 
-to continue....
+## to continue...

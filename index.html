@@ -257,10 +257,10 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
   <pre><code class="r" style="font-size:66%">type Line
         a::Float64   # intercept
         b::BigFloat  # slope
-        x1::BigFloat # x-coordinate of first vertice
-        y1::BigFloat # y-coordinate of first vertice
-        x2::BigFloat # x-coordinate of second vertice
-        y2::BigFloat # y-coordinate of second vertice
+        x1::BigFloat # x-coordinate of first vertex
+        y1::BigFloat # y-coordinate of first vertex
+        x2::BigFloat # x-coordinate of second vertex
+        y2::BigFloat # y-coordinate of second vertex
         typ::Bool    # type of the line (true:upper, false:lower)
 end
 </code></pre>
@@ -308,7 +308,7 @@ end
 particle for illustration.</p>
 
 <div class='leftcol' style='width:49%;'>
-  <pre><code class="r" style="font-size:66%"># the empty particle
+  <pre><code class="r" style="font-size:57%"># the empty particle
 emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), 
   Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), 
   Array(Bool,0));
@@ -329,7 +329,7 @@ end
 
 </div>
 <div class='rightcol' style='width:51%;'>
-  <pre><code class="r" style="font-size:66%"># first ribbon:
+  <pre><code class="r" style="font-size:57%"># first ribbon:
 D1_low = newLine(0.4, BigFloat(1.5), false);
 D1_upp = newLine(1.5, BigFloat(1.5), true);
 # second ribbon:
@@ -468,9 +468,61 @@ is sampled</p>
 </slide>
 
 <slide class="" id="slide-12" style="background:;">
+  <hgroup>
+    <h2>The intersection in the simple situation</h2>
+  </hgroup>
   <article data-timings="">
-    <p>to continue....</p>
+    
+<div class='leftcol' style='width:50%;'>
+  <p>We treat the lower line of the new ribbon first. </p>
 
+<pre><code class="r" style="font-size:59%"># new ribbon
+D3_low = newLine(2., BigFloat("0.5"), false);
+D3_upp = newLine(3., BigFloat("0.5"), true);
+# first test
+D = D3_low
+test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+test = test1 + test2 # should I use "+" or ".+" ?
+</code></pre>
+
+<p><img src="assets/fig/JuliaGFI00-plot_newribbon_01.png" alt="plot of chunk plot_newribbon_01"> </p>
+
+</div>
+<div class='rightcol' style='width:45%;'>
+  <p>For each edge (\(1\), \(2\), \(3\), \(4\)) of the current particle, here are the number of 
+vertices above the lower new line:</p>
+
+<pre><code class="r" style="font-size:61%">julia> test
+4-element Array{Int64,1}:
+ 0
+ 2
+ 1
+ 1
+</code></pre>
+
+<p>We can remove the first edge:</p>
+
+<pre><code class="r" style="font-size:61%">
+</code></pre>
+
+<p>For the second edge, there&#39;s nothing to do. For the third and fourth edges, 
+we calculate the intersection.</p>
+
+</div>
+<div style='clear:both'>
+  
+</div>
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-13" style="background:;">
+  <hgroup>
+    <h2>to continue...</h2>
+  </hgroup>
+  <article data-timings="">
+    
   </article>
   <!-- Presenter Notes -->
 </slide>
@@ -547,8 +599,14 @@ is sampled</p>
     </li>
     <li>
       <a href="#" target="_self" rel='tooltip' 
-        data-slide=12 title=''>
+        data-slide=12 title='The intersection in the simple situation'>
          12
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=13 title='to continue...'>
+         13
       </a>
     </li>
   </ul>
@@ -562,6 +620,7 @@ is sampled</p>
   <!-- Load Javascripts for Widgets -->
   <script src="libraries/widgets/bootstrap/js/bootstrap.min.js"></script>
 <script src="libraries/widgets/bootstrap/js/bootbox.min.js"></script>
+<script src="./assets/js/gadfly.js"></script>
 
   <script>  
   $(function (){ 
