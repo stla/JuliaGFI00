@@ -18,35 +18,25 @@ type Poly
         typ::Vector{Bool}
 end
 
-macro addLine(poly, line)
+function addLine(poly::Poly, line::Line)
         for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-          @eval $poly.$op = [$poly.$op, $line.$op]
+          poly.(op) = [poly.(op), line.(op)]
         end
 end
 
-macro removeLine(poly, index)
+function replaceLine(poly::Poly, index::Int, line::Line)
     for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-        @eval splice!($poly.$op, $index)
+        poly.(op)[index] = line.(op)
     end
 end
 
-function removeLine(poly::Poly, index::Int)
-    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-        @eval splice!($poly.$op, $index)
-    end
-end
-
-function removeLine2(poly::Poly, index::Int)
+function removeLine(poly::Poly, index::Int) # not used yet
     for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
         splice!(getfield(poly, op), index)
     end
 end
+
 function removeLines(poly::Poly, indices::BitArray{1})
-    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-        @eval $poly.$op = ($poly.$op)[!$indices]
-    end
-end
-function removeLines2(poly::Poly, indices::BitArray{1})
     for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
         poly.(op) = (poly.(op))[!indices]
     end
@@ -80,6 +70,6 @@ end
 # plot particle
 using Gadfly
 function plotPart(poly::Poly)
-        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        p = plot(x = float64([poly.x1, poly.x2]), y = float64([poly.y1, poly.y2]), Geom.point, Geom.line)
         return p
 end

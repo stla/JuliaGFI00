@@ -188,11 +188,11 @@ polyhedra are sequentially sampled and become smaller and smaller and smaller...
 
 ## Line and polyhedron in Julia  
 
-I will firstly try to deal with lines and polyhedra using these types and macros:
+I will firstly try to deal with lines and polyhedra using these types and functions:
 
-*** {name: left, width: "60%"}
+*** {name: left, width: "50%"}
 
-<pre><code class="r" style="font-size:66%">type Line
+<pre><code class="r" style="font-size:63%">type Line
         a::Float64   # intercept
         b::BigFloat  # slope
         x1::BigFloat # x-coordinate of first vertex
@@ -204,9 +204,7 @@ end
 </code></pre>
 
 
-*** {name: right, width: "40%"}
-
-<pre><code class="r" style="font-size:66%">type Poly
+<pre><code class="r" style="font-size:63%">type Poly
         a::Vector{Float64}
         b::Vector{BigFloat}
         x1::Vector{BigFloat}
@@ -218,25 +216,43 @@ end
 </code></pre>
 
 
-*** =fullwidth
+*** {name: right, width: "46%"}
 
 
-<pre><code class="r" style="font-size:66%">macro addLine(poly, line)
+<pre><code class="r" style="font-size:63%">function addLine(poly::Poly, line::Line)
         for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-          @eval $poly.$op = [$poly.$op, $line.$op]
+          poly.(op) = [poly.(op), line.(op)]
         end
 end
 </code></pre>
 
 
-<pre><code class="r" style="font-size:66%">macro removeLine(poly, index)
+<pre><code class="r" style="font-size:63%">function removeLines(poly::Poly, indices::BitArray{1})
     for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-        @eval splice!($poly.$op, $index)
+        poly.(op) = (poly.(op))[!indices]
     end
 end
 </code></pre>
 
 
+<pre><code class="r" style="font-size:63%">function getLine(poly::Poly, i::Int)
+        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
+end
+</code></pre>
+
+
+<pre><code class="r" style="font-size:63%">function replaceLine(poly::Poly, index::Int, line::Line)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op)[index] = line.(op)
+    end
+end
+</code></pre>
+
+
+*** =fullwidth
+
+
+x
 
 --- &twocolcustomwidth
 
@@ -284,11 +300,11 @@ D2_upp = newLine(5.9, BigFloat(-2), true);
 (D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
 
 # create the particle :
-poly = deepcopy(emptyPoly)
-@addLine poly D1_low
-@addLine poly D1_upp
-@addLine poly D2_low
-@addLine poly D2_upp
+poly = deepcopy(emptyPoly);
+addLine(poly, D1_low)
+addLine(poly, D1_upp)
+addLine(poly, D2_low)
+addLine(poly, D2_upp)
 </code></pre>
 
 
@@ -300,7 +316,7 @@ poly = deepcopy(emptyPoly)
 
 <pre><code class="r" style="font-size:66%">using Gadfly
 function plotPart(poly::Poly)
-        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        p = plot(x = float64([poly.x1, poly.x2]), y = float64([poly.y1, poly.y2]), Geom.point, Geom.line)
         return p
 end
 p = plotPart(poly)
@@ -428,28 +444,16 @@ vertices above the lower new line:
 </code></pre>
 
 
-We can remove the first edge:
+  - The first edge has to be removed
 
-<pre><code class="r" style="font-size:61%">
-</code></pre>
-
-
-For the second edge, there's nothing to do. For the third and fourth edges, 
-we calculate the intersection.
+  - For the second edge, there's nothing to do. 
+  
+  - For the third and fourth edges, we calculate the intersection.
 
 
 --- 
 
 ## The intersection in the simple situation (2/2)
-
-We will need a function to extract a line from a particle
-
-<pre><code class="r" style="font-size:61%"># get line in row i of poly
-function getLine(poly::Poly, i::Int)
-        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
-end
-</code></pre>
-
 
 
 <pre><code class="r" style="font-size:61%">julia> Dinters = find(test.== 1) # should be 0 or 2 elements
@@ -460,7 +464,52 @@ end
 
 
 
-<pre><code class="r" style="font-size:61%">
+<pre><code class="r" style="font-size:61%">for D = (D3_low, D3_upp)
+    test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+    test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+    test = test1 + test2 # should I use "+" or ".+" ?
+    if(D.typ==false)
+        toRemove = test .== 0
+    else
+        toRemove = test .== 2
+    end
+    Dinters = find(test.== 1) # should be 0 or 2 elements
+    toAdd = false
+    if length(Dinters) == 2
+        xx = (:x1, :x2)
+        yy = (:y1, :y2)
+        for i = (1,2) # we calculate the two vertices on D
+                Di = getLine(poly, Dinters[i]) # part[Dinters[i],]
+
+                inter = intersect(D,Di)
+
+                (D.(xx[i]), D.(yy[i])) = inter
+
+                # on modifie un vertex de la droite Di intersectionnÃ©e
+                if(D.typ==false)
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                else
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                end
+                # replacement, could be improved because we only replace one vertex:
+                replaceLine(poly, Dinters[i], Di)
+        end # endfor i=1,2
+        toAdd = true
+    end # endif length(Dinters) == 2
+    removeLines(poly, toRemove)
+    if toAdd
+        addLine(poly,D)
+    end
+end # endfor D = (D3_low, D3_upp)
+
 </code></pre>
 
 

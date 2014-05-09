@@ -1,7 +1,5 @@
 #include("D:/Github/JuliaGFI00/assets/Julia/newtypes.jl")
 
-emptyPoly
-
 # first ribbon: (ne pas lancer le comment en 1ère ligne)
 D1_low = newLine(0.4, BigFloat("1.5"), false);
 D1_upp = newLine(1.5, BigFloat("1.5"), true);
@@ -17,10 +15,10 @@ D2_upp = newLine(5.9, BigFloat("-2"), true);
 
 # create the particle:
 poly = deepcopy(emptyPoly);
-@addLine poly D1_low
-@addLine poly D1_upp
-@addLine poly D2_low
-@addLine poly D2_upp
+addLine(poly, D1_low)
+addLine(poly, D1_upp)
+addLine(poly, D2_low)
+addLine(poly, D2_upp)
 poly
 
 # new pair of points on the y-axis
@@ -37,19 +35,22 @@ findRange(poly, lower, upper)
 D3_low = newLine(2., BigFloat("0.5"), false);
 D3_upp = newLine(3., BigFloat("0.5"), true);
 
-# first test for lower new line
-D = D3_low
-test1 = poly.y1 .> D.a .+ D.b .* poly.x1
-test2 = poly.y2 .> D.a .+ D.b .* poly.x2
-test = test1 + test2 # should I use "+" or ".+" ?
 
-removeLines(poly, test .== 0) # test.==2 for upper line
-
-Dinters = find(test.== 1) # should be 0 or 2 elements
-if length(Dinters) == 2
+for D = (D3_low, D3_upp)
+    test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+    test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+    test = test1 + test2 # should I use "+" or ".+" ?
+    if(D.typ==false)
+        toRemove = test .== 0
+    else
+        toRemove = test .== 2
+    end
+    Dinters = find(test.== 1) # should be 0 or 2 elements
+    toAdd = false
+    if length(Dinters) == 2
         xx = (:x1, :x2)
         yy = (:y1, :y2)
-        for i = 1:2
+        for i = (1,2) # we calculate the two vertices on D
                 Di = getLine(poly, Dinters[i]) # part[Dinters[i],]
 
                 inter = intersect(D,Di)
@@ -57,18 +58,31 @@ if length(Dinters) == 2
                 (D.(xx[i]), D.(yy[i])) = inter
 
                 # on modifie un vertex de la droite Di intersectionnÃ©e
-                # type "low"
-                if test1[Dinters[i]]
-                    (Di.x2, Di.y2) = inter
+                if(D.typ==false)
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
                 else
-                    (Di.x1, Di.y1) = inter
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
                 end
-                # replacement, could be improved:
-                removeLine(poly, Dinters[i])
-                @addLine poly Di
-        end
-        @addLine poly D
-end
+                # replacement, could be improved because we only replace one vertex:
+                replaceLine(poly, Dinters[i], Di)
+        end # endfor i=1,2
+        toAdd = true
+    end # endif length(Dinters) == 2
+    removeLines(poly, toRemove)
+    if toAdd
+        addLine(poly,D)
+    end
+end # endfor D = (D3_low, D3_upp)
+
+
 
 
 

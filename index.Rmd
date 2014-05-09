@@ -263,9 +263,9 @@ abline(a=1, b=1.4, col="red", lwd=2)
 
 ## Line and polyhedron in Julia  
 
-I will firstly try to deal with lines and polyhedra using these types and macros:
+I will firstly try to deal with lines and polyhedra using these types and functions:
 
-*** {name: left, width: "60%"}
+*** {name: left, width: "50%"}
 
 ```{r type_line, results='asis', echo=FALSE}
 codechunk("type Line
@@ -276,10 +276,8 @@ codechunk("type Line
         x2::BigFloat # x-coordinate of second vertex
         y2::BigFloat # y-coordinate of second vertex
         typ::Bool    # type of the line (true:upper, false:lower)
-end", size="66%")
+end", size="63%")
 ```
-
-*** {name: right, width: "40%"}
 
 ```{r type_poly, results='asis', echo=FALSE}
 codechunk("type Poly
@@ -290,28 +288,46 @@ codechunk("type Poly
         x2::Vector{BigFloat}
         y2::Vector{BigFloat}
         typ::Vector{Bool}
-end", size="66%")
+end", size="63%")
+```
+
+*** {name: right, width: "46%"}
+
+
+```{r macro_addline, results='asis', echo=FALSE}
+codechunk("function addLine(poly::Poly, line::Line)
+        for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+          poly.(op) = [poly.(op), line.(op)]
+        end
+end", size="63%")
+```
+
+```{r macro_removeline, results='asis', echo=FALSE}
+codechunk("function removeLines(poly::Poly, indices::BitArray{1})
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op) = (poly.(op))[!indices]
+    end
+end", size="63%")
+```
+
+```{r macro_getline, results='asis', echo=FALSE}
+codechunk("function getLine(poly::Poly, i::Int)
+        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
+end", size="63%")
+```
+
+```{r macro_replaceline, results='asis', echo=FALSE}
+codechunk("function replaceLine(poly::Poly, index::Int, line::Line)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op)[index] = line.(op)
+    end
+end", size="63%")
 ```
 
 *** =fullwidth
 
 
-```{r macro_addline, results='asis', echo=FALSE}
-codechunk("macro addLine(poly, line)
-        for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-          @eval $poly.$op = [$poly.$op, $line.$op]
-        end
-end", size="66%")
-```
-
-```{r macro_removeline, results='asis', echo=FALSE}
-codechunk("macro removeLine(poly, index)
-    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
-        @eval splice!($poly.$op, $index)
-    end
-end", size="66%")
-```
-
+x
 
 --- &twocolcustomwidth
 
@@ -360,11 +376,11 @@ D2_upp = newLine(5.9, BigFloat(-2), true);
 (D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
 
 # create the particle :
-poly = deepcopy(emptyPoly)
-@addLine poly D1_low
-@addLine poly D1_upp
-@addLine poly D2_low
-@addLine poly D2_upp", size="57%")
+poly = deepcopy(emptyPoly);
+addLine(poly, D1_low)
+addLine(poly, D1_upp)
+addLine(poly, D2_low)
+addLine(poly, D2_upp)", size="57%")
 ```
 
 
@@ -376,7 +392,7 @@ poly = deepcopy(emptyPoly)
 ```{r julia_plotPart, results='asis', echo=FALSE, cache=FALSE}
 codechunk('using Gadfly
 function plotPart(poly::Poly)
-        p = plot(x=[convert(Float64,x) for x in [poly.x1 poly.x2]], y=[convert(Float64,y) for y in [poly.y1 poly.y2]], Geom.point, Geom.line)
+        p = plot(x = float64([poly.x1, poly.x2]), y = float64([poly.y1, poly.y2]), Geom.point, Geom.line)
         return p
 end
 p = plotPart(poly)
@@ -596,28 +612,16 @@ codechunk("julia> test
  1", size="61%")
 ```
 
-We can remove the first edge:
+  - The first edge has to be removed
 
-```{r julia_, results='asis', echo=FALSE}
-codechunk("", size="61%")
-```
-
-For the second edge, there's nothing to do. For the third and fourth edges, 
-we calculate the intersection.
+  - For the second edge, there's nothing to do. 
+  
+  - For the third and fourth edges, we calculate the intersection.
 
 
 --- 
 
 ## The intersection in the simple situation (2/2)
-
-We will need a function to extract a line from a particle
-
-```{r julia_x, results='asis', echo=FALSE}
-codechunk("# get line in row i of poly
-function getLine(poly::Poly, i::Int)
-        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
-end", size="61%")
-```
 
 
 ```{r julia_xx, results='asis', echo=FALSE}
@@ -629,7 +633,52 @@ codechunk("julia> Dinters = find(test.== 1) # should be 0 or 2 elements
 
 
 ```{r julia_xxx, results='asis', echo=FALSE}
-codechunk("", size="61%")
+codechunk('for D = (D3_low, D3_upp)
+    test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+    test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+    test = test1 + test2 # should I use "+" or ".+" ?
+    if(D.typ==false)
+        toRemove = test .== 0
+    else
+        toRemove = test .== 2
+    end
+    Dinters = find(test.== 1) # should be 0 or 2 elements
+    toAdd = false
+    if length(Dinters) == 2
+        xx = (:x1, :x2)
+        yy = (:y1, :y2)
+        for i = (1,2) # we calculate the two vertices on D
+                Di = getLine(poly, Dinters[i]) # part[Dinters[i],]
+
+                inter = intersect(D,Di)
+
+                (D.(xx[i]), D.(yy[i])) = inter
+
+                # on modifie un vertex de la droite Di intersectionnÃ©e
+                if(D.typ==false)
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                else
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                end
+                # replacement, could be improved because we only replace one vertex:
+                replaceLine(poly, Dinters[i], Di)
+        end # endfor i=1,2
+        toAdd = true
+    end # endif length(Dinters) == 2
+    removeLines(poly, toRemove)
+    if toAdd
+        addLine(poly,D)
+    end
+end # endfor D = (D3_low, D3_upp)
+', size="61%")
 ```
 
 
