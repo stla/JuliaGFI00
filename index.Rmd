@@ -1,0 +1,687 @@
+---
+title       : Julia implementation of GFI
+subtitle    : First part - the polyhedra sampler
+author      : Stephane Laurent
+job         : 
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : [bootstrap, mathjax, scianimator]
+mode        : selfcontained # {standalone, draft}
+---
+
+
+
+```{r setup, echo=FALSE, cache=FALSE, message=FALSE, warning=FALSE}
+#setwd("D:/Github/JuliaGFI00"); library(slidify); slidify("index.Rmd")
+source("assets/R/slidifyMacros.R")
+source('D:/Work/Fiducial/R/particle_01_functions.R')
+library(knitr)
+library(animation)
+library(scales)
+opts_chunk$set(fig.path="assets/fig/JuliaGFI00-")
+hook_scianimator <- function (x, options) 
+{
+    fig.num = options$fig.num
+    base = "" #opts_knit$get("base.url") %n% ""
+    id = gsub("[^[:alnum:]]", "_", options$label)
+    sprintf("\n<div class=\"scianimator\">\n<div id=\"%s\" style=\"display: inline-block;\">\n</div>\n</div>\n<script type=\"text/javascript\">\n  (function($) {\n    $(document).ready(function() {\n  %s\n    var imgs = Array(%s);\n      for (i=0; ; i++) {\n        if (i == imgs.length) break;\n        imgs[i] = \"%s%s\" + (i + 1) + \".%s\";\n      }\n      $(\"#%s\").scianimator({\n          \"images\": imgs,\n           \"controls\": [\"previous\",  \"next\"],\n \"keyboard\": false,\n \"loopmode\": \"none\",\n \"defaultFrame\": 0\n    });\n     });\n  })(jQuery);\n</script>\n", 
+        id, id, fig.num, base, sub(stringr::str_c(fig.num, "$"), "", x[1]), 
+        x[2], id, id)
+}
+assignInNamespace("hook_scianimator",hook_scianimator, ns="knitr")
+opts_knit$set(animation.fun = hook_scianimator)
+set.seed(666)
+```
+
+## Goal 
+
+- Implement Ciszewski & Hannig's sampler of the fiducial distribution for normal linear mixed models
+
+### Why Julia ?
+
+  - The algorithm is computationnaly intensive
+  
+  - It requires a high numerical precision; we hope the `BigFloat` type in Julia will achieve this precision 
+  
+  - Currently, the available Matlab implementation is not sufficient for large datasets
+
+### Why these slides ?
+
+  - I'm not a Julia specialist; these slides should firstly help me to request some help 
+
+  - [Ciszewski & Hannig's paper](http://www.unc.edu/~hannig/publications/CisewskiHannig2012.pdf) is not easy to read for non-mathematicians, and 
+  the algorithm may appear complicated to us
+  
+  - Because I like the [slidify package](http://slidify.org/)
+
+---
+
+## Problem addressed in these slides 
+
+- These slides only address one part of the algorithm: the sampling of 
+random polyhedra in the Euclidean space 
+
+- This is the point requiring high numerical precision, because the 
+polyhedra are sequentially sampled and become smaller and smaller and smaller...
+
+
+
+--- &twocolcustomwidth 
+
+## Polyhedra construction: overview 
+
+*** {name: left, width: "33%"}
+
+- *Data:* Some pairs of points are given on the $y$-axis
+
+- *Sampling:* Some ribbons issued from these points are sampled at random 
+
+- *Computation:* The polyhedron at the intersection of the ribbons
+
+*** {name: right, width: "63%"}
+
+```{r construction_intro, echo=FALSE, cache=FALSE}
+# init 
+source("./assets/R/sample1.R")
+D31["b"] <- D32["b"] <- 0.5 #runif(1,mM[1],mM[2])
+part2 <- findVert(part, D31)
+part2 <- findVert(part2, D32)
+parttemp <- rbind(part,D31,D32)
+parttemp[, "include"] <- 1
+```
+
+
+```{r construction_intro_plot00, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
+par(bg = "white")
+xlim <- c(0,2)
+ylim <- c(0,6.5)
+#
+plot(0, 0, type="n", xlim=xlim, ylim=ylim, axes=FALSE, 
+     xaxs="i", yaxs="i", xlab="x", ylab="y", 
+      main="Data")
+ axis(1);axis(2)
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, col.line=rep(c("blue","green", "red"),each=2), 
+          main="Sampling of ribbons")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+D1 <- D11
+D2 <- D12
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+D1 <- D21
+D2 <- D22
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+D1 <- D31
+D2 <- D32
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+plot.new()
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Polyhedron")
+D1 <- D11
+D2 <- D12
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+D1 <- D21
+D2 <- D22
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+D1 <- D31
+D2 <- D32
+polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+```
+
+
+--- &twocolcustomwidth 
+
+## Polyhedra construction: algorithm 
+
+*** {name: left, width: "33%"}
+
+- *Step 1:* the slopes of the first two pairs of lines are sampled without restriction
+
+- *Step 2:* the polyhedron is computed
+
+- *Step 3:* the slope of the next pair is sampled in a constrained range, assuring there's an intersection
+
+- *Step 4*: the polyhedron is  updated
+
+- *Repeat* steps 3 and 4
+
+*** {name: right, width: "63%"}
+
+
+```{r construction_intro_plot01, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5, interval=.2}
+par(bg = "white")
+xlim <- c(0,2)
+ylim <- c(0,6.5)
+# #
+# plot(0, 0, type="n", xlim=xlim, ylim=ylim, axes=FALSE, 
+#      xaxs="i", yaxs="i", xlab="x", ylab="y", 
+#       main="Data")
+#  axis(1);axis(2)
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# # plot.new()
+# #
+# plotpart2(part[part[,"pair"]==1,], xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+#           main="Step1:")
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+# #
+# plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+#           main="Step2:")
+# points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+# points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+# plot.new()
+#
+plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE, 
+          col.line=rep(c("blue","green"),each=2, col.edge="black"),
+          main="Step 1:")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, 
+          col.line=rep(c("blue","green"),each=2), col.edge="black",
+          main="Step 2:")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Step 3")
+plotpart2(part, lines=FALSE, add=TRUE, col.edge="black")
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+#
+plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+          main="Step 4")
+plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black" )
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+```
+
+
+--- &twocolcustomwidth
+
+## Line and polyhedron representation 
+
+  - A line has a ''type'': upper or lower
+  
+  - A line has $0$, $1$ or $2$ intersections with the active polyhedron
+
+*** {name: left, width: "60%"}
+
+```{r line_plot01, echo=FALSE, fig.show='animate', cache=FALSE,  fig.height=5}
+par(bg = "white")
+plot0 <- function(){
+  par(mar=c(1,1,0.1,1))
+  plotpart2(part, xlim=xlim, ylim=ylim, lines=TRUE, 
+          col.line=rep(c("blue","green"),each=2), col.edge="black",
+          main="", xlab=NA, ylab=NA)
+points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+}
+plot0()
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=2.8, col="red", lwd=2)
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=0.96, col="red", lwd=2)
+plot.new()
+# 
+plot0()
+points(0, 1, col="red", pch=19, cex=2, xpd=TRUE)
+abline(a=1, b=1.4, col="red", lwd=2)
+```
+
+*** {name: right, width: "40%"}
+
+`r linebreak("30pt")`
+
+- Only lines having two intersections are kept
+
+- A polyhedron is represented by a set of such lines
+
+
+--- &twocolcustomwidth
+
+## Line and polyhedron in Julia  
+
+I will firstly try to deal with lines and polyhedra using these types and functions:
+
+*** {name: left, width: "50%"}
+
+```{r type_line, results='asis', echo=FALSE}
+codechunk("type Line
+        a::Float64   # intercept
+        b::BigFloat  # slope
+        x1::BigFloat # x-coordinate of first vertex
+        y1::BigFloat # y-coordinate of first vertex
+        x2::BigFloat # x-coordinate of second vertex
+        y2::BigFloat # y-coordinate of second vertex
+        typ::Bool    # type of the line (true:upper, false:lower)
+end", size="63%")
+```
+
+```{r type_poly, results='asis', echo=FALSE}
+codechunk("type Poly
+        a::Vector{Float64}
+        b::Vector{BigFloat}
+        x1::Vector{BigFloat}
+        y1::Vector{BigFloat}
+        x2::Vector{BigFloat}
+        y2::Vector{BigFloat}
+        typ::Vector{Bool}
+end", size="63%")
+```
+
+*** {name: right, width: "46%"}
+
+
+```{r macro_addline, results='asis', echo=FALSE}
+codechunk("function addLine(poly::Poly, line::Line)
+        for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+          poly.(op) = [poly.(op), line.(op)]
+        end
+end", size="63%")
+```
+
+```{r macro_removeline, results='asis', echo=FALSE}
+codechunk("function removeLines(poly::Poly, indices::BitArray{1})
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op) = (poly.(op))[!indices]
+    end
+end", size="63%")
+```
+
+```{r macro_getline, results='asis', echo=FALSE}
+codechunk("function getLine(poly::Poly, i::Int)
+        return Line(poly.a[i], poly.b[i], poly.x1[i], poly.y1[i], poly.x2[i], poly.y2[i], poly.typ[i])
+end", size="63%")
+```
+
+```{r macro_replaceline, results='asis', echo=FALSE}
+codechunk("function replaceLine(poly::Poly, index::Int, line::Line)
+    for op = (:a, :b, :x1, :y1, :x2, :y2, :typ)
+        poly.(op)[index] = line.(op)
+    end
+end", size="63%")
+```
+
+*** =fullwidth
+
+
+x
+
+--- &twocolcustomwidth
+
+## The first particle 
+
+
+In reality the first particle is sampled at random, but we define a fixed 
+particle for illustration.
+
+*** {name: left, width: "49%"}
+
+```{r julia_intersect, results='asis', echo=FALSE, cache=FALSE}
+codechunk("# the empty particle
+emptyPoly = Poly(Array(Float64,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(BigFloat,0), Array(BigFloat,0), Array(BigFloat,0), 
+  Array(Bool,0));
+
+# generates a new line with given intercept and slope 
+# - I'm using BigFloat(Inf) as the 'NA' BigFloat
+function newLine(a::Float64, b::BigFloat, typ::Bool)
+        return Line(a, b, BigFloat(Inf), BigFloat(Inf), BigFloat(Inf), 
+  BigFloat(Inf), typ)
+end
+
+# returns the intersection of two lines
+function intersect(D1::Line, D2::Line)
+        x = (D1.a-D2.a)/(D2.b-D1.b)
+        return x, D1.a + D1.b*x
+end", size="57%")
+```
+
+*** {name: right, width: "51%"}
+
+```{r julia_firstP, results='asis', echo=FALSE, cache=FALSE}
+codechunk("# first ribbon:
+D1_low = newLine(0.4, BigFloat(1.5), false);
+D1_upp = newLine(1.5, BigFloat(1.5), true);
+# second ribbon:
+D2_low = newLine(4.5, BigFloat(-2), false);
+D2_upp = newLine(5.9, BigFloat(-2), true);
+
+# find the intersections:
+(D1_low.x1, D1_low.y1) = (D2_low.x1, D2_low.y1) = intersect(D1_low,D2_low);
+(D1_low.x2, D1_low.y2) = (D2_upp.x1, D2_upp.y1) = intersect(D1_low,D2_upp);
+(D1_upp.x1, D1_upp.y1) = (D2_low.x2, D2_low.y2) = intersect(D1_upp,D2_low);
+(D1_upp.x2, D1_upp.y2) = (D2_upp.x2, D2_upp.y2) = intersect(D1_upp,D2_upp);
+
+# create the particle :
+poly = deepcopy(emptyPoly);
+addLine(poly, D1_low)
+addLine(poly, D1_upp)
+addLine(poly, D2_low)
+addLine(poly, D2_upp)", size="57%")
+```
+
+
+--- &twocolcustomwidth
+
+## Plotting a Javascript particle with Gadfly
+
+
+```{r julia_plotPart, results='asis', echo=FALSE, cache=FALSE}
+codechunk('using Gadfly
+function plotPart(poly::Poly)
+        p = plot(x = float64([poly.x1, poly.x2]), y = float64([poly.y1, poly.y2]), Geom.point, Geom.line)
+        return p
+end
+p = plotPart(poly)
+draw(D3("part01.js", 650px, 350px), p)', size="66%")
+```
+
+*** {name: left, width: "66%"}
+
+<!-- Placed whereever you want the graphic to be rendered. -->
+<iframe src="assets/img/part01.html" style="border: none; "></iframe>
+
+*** {name: right, width: "32%"}
+
+`r linebreak("30pt")`
+
+Well, the vertices are correct but that's not really the particle ! 
+[Gadfly](https://github.com/dcjones/Gadfly.jl) package is awesome, but 
+currently there's no built-in function to draw segments ? 
+
+
+--- 
+
+## Computing the range and intersection 
+
+Recall the two steps, when a particle and a new pair of starting points 
+on the $y$-axis is given:
+
+- Calculate the range of the possible slope of the new ribbon
+
+- Generate the new ribbon and compute the new particle
+
+
+```{r init_newribbon, echo=FALSE, cache=FALSE}
+# init 
+source("./assets/R/sample1.R")
+seq.b <- seq(mM[1]*0.98, mM[2]*0.98, len=80)
+```
+
+```{r gif, echo=FALSE, message=FALSE, cache=FALSE}
+if(!file.exists("./assets/img/range.gif")){
+  saveGIF({
+    for(b in c(seq.b, rev(seq.b))){
+      D31["b"] <- D32["b"] <- b #runif(1,mM[1],mM[2])
+      part2 <- findVert(part, D31)
+      part2 <- findVert(part2, D32)
+      parttemp <- rbind(part,D31,D32)
+      parttemp[, "include"] <- 1
+      par(bg = "white")
+      xlim <- c(0,2)
+      ylim <- c(0,6.5)
+      #
+      par(mar=c(3,3,1,1))
+      plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+                main=NA)
+      D1 <- D11
+      D2 <- D12
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+      D1 <- D21
+      D2 <- D22
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+      D1 <- D31
+      D2 <- D32
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+      plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black")
+      points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+      }
+    }, movie.name = "range.gif", interval = 0.06, nmax = 30, ani.width = 600, 
+    ani.height = 400, outdir=paste0(getwd(),"/assets/img"), autobrowse=FALSE)
+  }
+```
+
+```{r showgif1, results='asis', echo=FALSE}
+cat('<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="55%">')
+```
+
+
+
+--- 
+
+## Computing the range
+
+Two different situations are distinguished for the range calculation:
+
+```{r twosituations, echo=FALSE,  fig.width=13, fig.height=4, cache=FALSE}
+layout(t(c(1,2)))
+par(mar=c(5,3,1,1))
+plotpart2(part, xlim=xlim, ylim=ylim,  edges=TRUE, vertices=TRUE, lines=FALSE,
+          col.edge="black", col.line=rep(c("blue","green"),each=2), main=NA, 
+          xlab=NA, ylab=NA, 
+          sub=expression(italic("the y-axis doesn't cross the particle")), cex.sub=2)
+#       D1 <- D11
+#       D2 <- D12
+#       polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+#       D1 <- D21
+#       D2 <- D22
+#       polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+par(mar=c(5,3,1,1))
+partemp <- part
+partemp[,"x1"] <- part[,"x1"] - 1.37
+partemp[,"x2"] <- part[,"x2"] - 1.37
+plotpart2(partemp, xlim=c(-1,1), ylim=ylim,  edges=TRUE, vertices=TRUE, lines=FALSE,
+          col.edge="black", col.line=rep(c("blue","green"),each=2), main=NA, 
+                    xlab=NA, ylab=NA, 
+          sub=expression(italic("the y-axis crosses the particle")), cex.sub=2)
+```
+
+The first situation is easier to handle. 
+We will restrict to this situation in these slides.
+
+
+--- &twocolcustomwidth
+
+## The range in the simple situation 
+
+Denote by $P$ the current particle and by 
+$\color{red}{\{a^-, a^+\}}$ the new pair of points on the $y$-axis. 
+Then the possible range for the slope of the new ribbon is the interval 
+$(m,M)$ where 
+$$ 
+m = \min_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+\quad \text{and} \quad 
+M = \max_{(x,y) \in P} \left\{\frac{y - a^-}{x}, \frac{y - a^+}{x}\right\}
+$$
+
+```{r julia_range, results='asis', echo=FALSE}
+codechunk("function findRange(poly::Poly, lower::Float64, upper::Float64)
+        slopes = [(poly.y1-lower)./poly.x1 (poly.y2-lower)./poly.x2 (poly.y1-upper)./poly.x1 (poly.y2-upper)./poly.x2]
+        return minimum(slopes), maximum(slopes)
+end", size="71%")
+```
+
+*** {name: left, width: "51%"}
+
+```{r showgif2, results='asis', echo=FALSE}
+cat('<img src="assets/img/range.gif" title="Range of the new ribbon to be sampled" alt="plot of chunk xxx" style="display: block; margin: auto;" width="65%">')
+```
+
+*** {name: right, width: "45%"}
+
+`r linebreak("30pt")`
+
+It remains to write a function calculating the new particle once the new ribbon 
+is sampled
+
+
+--- &twocolcustomwidth
+
+## The intersection in the simple situation (1/2)
+
+*** {name: left, width: "50%"}
+
+We treat the lower line of the new ribbon first. 
+
+```{r julia_newribbon_01, results='asis', echo=FALSE}
+codechunk('# new ribbon
+D3_low = newLine(2., BigFloat("0.5"), false);
+D3_upp = newLine(3., BigFloat("0.5"), true);
+# first test
+D = D3_low
+test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+test = test1 + test2 # should I use "+" or ".+" ?', size="59%")
+```
+
+```{r plot_newribbon_01, echo=FALSE,  cache=FALSE,  fig.height=3.8}
+par(bg = "white")
+source("./assets/R/sample1.R")
+D31["b"] <- D32["b"] <- 0.5
+      D31["b"] <- D32["b"] <- 0.5 
+      part2 <- findVert(part, D31)
+      part2 <- findVert(part2, D32)
+      parttemp <- rbind(part,D31,D32)
+      parttemp[, "include"] <- 1
+      par(bg = "white")
+      xlim <- c(0,2)
+      ylim <- c(0,6.5)
+      #
+      par(mar=c(3,3,1,1))
+      plotpart2(parttemp, xlim=xlim, ylim=ylim, lines=TRUE, edges=FALSE, vertices=FALSE,  col.line=rep(c("blue","green", "red"),each=2), 
+                main=NA)
+      D1 <- part[1,]
+      D2 <- part[2,]
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("blue",0.4), border=NA)
+      text(x=mean(D1[c("x1","x2")]), y= mean(D1[c("y1","y2")]), 
+           labels="1", pos=1, cex=1)
+      text(x=mean(D2[c("x1","x2")]), y= mean(D2[c("y1","y2")]), 
+           labels="2", pos=3, cex=1)
+      D1 <- part[3,]
+      D2 <- part[4,]
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("green",0.4), border=NA)
+      text(x=mean(D1[c("x1","x2")]), y= mean(D1[c("y1","y2")]), 
+           labels="3", pos=2, cex=1)
+      text(x=mean(D2[c("x1","x2")]), y= mean(D2[c("y1","y2")]), 
+           labels="4", pos=4, cex=1)
+      D1 <- D31
+      D2 <- D32
+      polygon(x=c(0,0,xlim[2],xlim[2]), y=c(D1["a"], D2["a"], D2["a"]+D2["b"]*xlim[2], D1["a"]+D1["b"]*xlim[2]), col=alpha("red",0.4), border=NA)
+      plotpart2(part2, lines=FALSE, add=TRUE, col.edge="black")
+      points(c(0,0), c(D11["a"], D12["a"]), col="blue", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D21["a"], D22["a"]), col="green", pch=19, cex=2, xpd=TRUE)
+      points(c(0,0), c(D31["a"], D32["a"]), col="red", pch=19, cex=2, xpd=TRUE)
+```
+
+*** {name: right, width: "45%"}
+
+For each edge ($1$, $2$, $3$, $4$) of the current particle, here are the number of 
+vertices above the lower new line:
+
+```{r julia_newribbon02, results='asis', echo=FALSE}
+codechunk("julia> test
+4-element Array{Int64,1}:
+ 0
+ 2
+ 1
+ 1", size="61%")
+```
+
+  - The first edge has to be removed
+
+  - For the second edge, there's nothing to do. 
+  
+  - For the third and fourth edges, we calculate the intersection.
+
+
+--- 
+
+## The intersection in the simple situation (2/2)
+
+
+```{r julia_xx, results='asis', echo=FALSE}
+codechunk("julia> Dinters = find(test.== 1) # should be 0 or 2 elements
+2-element Array{Int64,1}:
+ 3
+ 4", size="61%")
+```
+
+
+```{r julia_xxx, results='asis', echo=FALSE}
+codechunk('for D = (D3_low, D3_upp)
+    test1 = poly.y1 .> D.a .+ D.b .* poly.x1
+    test2 = poly.y2 .> D.a .+ D.b .* poly.x2
+    test = test1 + test2 # should I use "+" or ".+" ?
+    if(D.typ==false)
+        toRemove = test .== 0
+    else
+        toRemove = test .== 2
+    end
+    Dinters = find(test.== 1) # should be 0 or 2 elements
+    toAdd = false
+    if length(Dinters) == 2
+        xx = (:x1, :x2)
+        yy = (:y1, :y2)
+        for i = (1,2) # we calculate the two vertices on D
+                Di = getLine(poly, Dinters[i]) # part[Dinters[i],]
+
+                inter = intersect(D,Di)
+
+                (D.(xx[i]), D.(yy[i])) = inter
+
+                # on modifie un vertex de la droite Di intersectionnÃ©e
+                if(D.typ==false)
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                else
+                    if test1[Dinters[i]]
+                        (Di.x2, Di.y2) = inter
+                    else
+                        (Di.x1, Di.y1) = inter
+                    end
+                end
+                # replacement, could be improved because we only replace one vertex:
+                replaceLine(poly, Dinters[i], Di)
+        end # endfor i=1,2
+        toAdd = true
+    end # endif length(Dinters) == 2
+    removeLines(poly, toRemove)
+    if toAdd
+        addLine(poly,D)
+    end
+end # endfor D = (D3_low, D3_upp)
+', size="61%")
+```
+
+
+--- 
+
+## to continue.... 
